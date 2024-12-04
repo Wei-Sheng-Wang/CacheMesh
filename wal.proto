@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package distributed_cache;
+
+message WALEntry {
+    uint64 sequence_number = 1;
+    enum OperationType {
+        PUT = 0;
+        REMOVE = 1;
+    }
+    OperationType op_type = 2;
+    string key = 3;
+    string value = 4;
+    int64 ttl = 5;
+    int64 timestamp = 6;
+    string node_id = 7;
+    uint32 checksum = 8;
+}

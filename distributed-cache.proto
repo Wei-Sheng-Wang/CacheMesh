@@ -1,0 +1,39 @@
+
+syntax = "proto3";
+
+package distributed_cache;
+
+message GetRequest {
+    string key = 1;
+}
+message GetResponse {
+    string value = 1;
+    bool success = 2;
+
+}
+
+message PutRequest {
+    string key = 1;
+    string value = 2;
+    int64 ttl = 3;
+    bool is_replica = 4;
+    bool success = 5;
+}
+
+message PutResponse {
+    bool success = 1;
+}
+
+message RemoveRequest {
+    string key = 1;
+}
+
+message RemoveResponse {
+    bool success = 1;
+}
+
+service DistributedCache {
+    rpc Get(GetRequest) returns (GetResponse);
+    rpc Put(PutRequest) returns (PutResponse);
+    rpc Remove(RemoveRequest) returns (RemoveResponse);
+}
