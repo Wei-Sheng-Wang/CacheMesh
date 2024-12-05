@@ -34,6 +34,9 @@ private:
 
     std::mutex channel_mutex_;
     std::unordered_map<std::string, std::shared_ptr<grpc::Channel>> channel_pool_;
+
+
+
 public:
     Node(
         const std::string& address,
@@ -41,6 +44,7 @@ public:
         std::size_t cache_capacity = 10000,
         const std::string& wal_path = "/Users/wangweisheng/Code/ws/distributed-cache-system-v2/wal.log"
     );
+    ~Node();
     void start();
     void stop();
 

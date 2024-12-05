@@ -4,7 +4,7 @@
 
 WriteQueue::WriteQueue(const std::string& wal_path, const std::string& node_id, std::size_t batch_size, std::chrono::milliseconds flush_interval)
     : wal_(WAL(wal_path))
-    , node_id_()
+    , node_id_(node_id)
     , batch_size_(batch_size)
     , flush_interval_(flush_interval) {}
 
@@ -42,27 +42,31 @@ void WriteQueue::enqueue(LogEntry&& op) {
 }
 
 void WriteQueue::flushLoop() {
-    std::unique_lock<std::mutex> lock(queue_mutex_);
     std::vector<LogEntry> batch;
 
     while (running_) {
-        // since cv_ acquires the lock, it still holds the queue_mutex_ even after passing the cv_.wait call
-        cv_.wait_for(lock, flush_interval_, [this] {return !running_ || size() >= batch_size_;});
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        std::size_t current_size = queue_.size();
 
-        if (!running_ && size() == 0) {
+
+        // since cv_ acquires the lock, it still holds the queue_mutex_ even after passing the cv_.wait call
+        cv_.wait_for(lock, flush_interval_, [this, current_size] {return !running_ || current_size >= batch_size_;});
+
+        if (!running_ && queue_.empty()) {
             break;
         }
         lock.unlock();
    
         // process by batch
         processBatch();
+        // lock.lock();
 
     }
+    
     processBatch();
 }
 
 void WriteQueue::processBatch() {
-    // asynchronously write to WAL
     std::vector<LogEntry> batch;
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
@@ -73,37 +77,13 @@ void WriteQueue::processBatch() {
         }
     }
 
-    // process asynchrnously
-    // loop through the batch
-    std::vector<std::future<bool>> write_log_futures;
-
-
-    for (const LogEntry& log_entry: batch) {
-        write_log_futures.push_back(
-            std::async(
-                std::launch::async,
-                &WAL::writeEntry,
-                &wal_,
-                node_id_,
-                std::move(log_entry)
-            )
-        );
-    }
-    bool all_successfull = true;
-    for (auto& future: write_log_futures) {
-        bool log_status = future.get();
-        if (!log_status) {
-            all_successfull = false;
-            std::cout << "Failed to write batch log files" << std::endl;
-        }
-    }
+    wal_.writeBatch(node_id_, batch);
 
 
 }   
 
 
 std::size_t WriteQueue::size() {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     return queue_.size();
 }
 

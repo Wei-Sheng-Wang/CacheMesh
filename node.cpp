@@ -15,16 +15,28 @@ Node::Node(
     consistent_hash_(52),
     write_queue_(std::make_unique<WriteQueue>(wal_path, address)),
     recovery_manager_(std::make_unique<RecoveryManager>(wal_path)){
-        // add current nodes to hash ring
+        
+        std::cout << "Starting Node initialization..." << std::endl;
+        
+        std::cout << "Adding nodes to hash ring..." << std::endl;
         consistent_hash_.addNode(address);
-        for(const auto& peer: peers){
+        for(const auto& peer: peers) {
             consistent_hash_.addNode(peer);
         }
-        // recover from wal
+        
+        std::cout << "Starting recovery from WAL..." << std::endl;
         recovery_manager_->recoverFromWAL(address_, *lru_cache_);
+        
+        std::cout << "Starting write queue..." << std::endl;
+        write_queue_->start();
+        
+        std::cout << "Node initialization complete" << std::endl;
 
 }
 
+Node::~Node() {
+    stop();
+}
 void Node::cleanup() {
     // clean up the expired items
     while(is_running_){
@@ -73,6 +85,9 @@ void Node::start(){
 
 void Node::stop(){
     is_running_ = false;
+    if (write_queue_) {
+        write_queue_->stop();
+    }
     // if server is running
     if(server_){
         server_->Shutdown();
@@ -83,6 +98,8 @@ void Node::stop(){
     }
 
 }
+
+
 
 
 // get the 

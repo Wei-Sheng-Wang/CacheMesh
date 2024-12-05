@@ -37,7 +37,7 @@ class CacheClient:
             # print(f"Attempting to put key: {key}, value: {value}")
             request = distributed_cache_pb2.PutRequest(key=key, value=value, ttl=ttl)
             response = self.stub.Put(request)
-            time.sleep(0.001)
+            # time.sleep(0.001)
             # print(f"Put response success: {response.success}")
             return response.success
         except Exception as e:

@@ -3,9 +3,10 @@
 #include <boost/crc.hpp> 
 
 WAL::WAL(const std::string& path) : log_path_(path) {
+    std::cout << "Opening WAL file at: " << path << std::endl;
     log_file_.open(log_path_, std::ios::app | std::ios::binary);
     if (!log_file_) {
-        std::cerr << "Failed to open WAL file" << std::endl;
+        std::cerr << "Failed to open WAL file: " << path << std::endl;
         throw std::runtime_error("Failed to open WAL file");
     }
     std::cout << "WAL file opened successfully" << std::endl;
@@ -135,3 +136,49 @@ LogEntry WAL::deserializeEntry(const std::string& data) {
 }
 
 
+
+bool WAL::writeBatch(const std::string& node_id, std::vector<LogEntry>& entries) {
+    
+    std::lock_guard<std::mutex> lock(log_mutex_);
+
+    // precalculate the total size and serialize all entries
+    std::vector<std::string> serialized_entries;
+    serialized_entries.reserve(entries.size());
+    uint32_t total_size = 0;
+
+    for (const auto& entry : entries) {
+        std::string serialized = serializeEntry(node_id, entry);
+        total_size += sizeof(uint32_t) + serialized.size();
+        serialized_entries.push_back(serialized);
+    }
+    // write batch size
+    uint32_t batch_size = entries.size();
+    if (!log_file_.write(reinterpret_cast<char*>(&batch_size), sizeof(batch_size))) {
+        std::cerr << "Failed to write batch size to WAL" << std::endl;
+        return false;
+    }
+
+    for (const auto& serialized : serialized_entries) {
+        uint32_t length = serialized.size();
+
+        if (!log_file_.write(reinterpret_cast<char*>(&length), sizeof(length))) {
+            std ::cerr << "Failed to write length prefix to WAL" << std::endl;
+            return false;
+        }
+
+        // write serialized data 
+        if (!log_file_.write(serialized.data(), serialized.size())) {
+            std::cerr << "Failed to write serialized data to WAL" << std::endl;
+            return false;
+        }
+
+
+    }
+    log_file_.flush();
+
+    if (log_file_.fail()){
+        std::cerr << "Failed to write batch to WAL file" << std::endl;
+        return false;
+    }
+    return true;
+}

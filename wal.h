@@ -40,8 +40,8 @@ public:
     const std::string& getLogPath() const {return log_path_;}
     static std::string serializeEntry(const std::string& node_id, const LogEntry& entry);
     static LogEntry deserializeEntry(const std::string& data);
-     bool writeEntry(const std::string& node_id, LogEntry&& entry);
-
+    bool writeEntry(const std::string& node_id, LogEntry&& entry);
+    bool writeBatch(const std::string& node_id, std::vector<LogEntry>& entries);
 private:
     static uint32_t calculateCRC32(const std::string& data);
     
