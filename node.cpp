@@ -222,16 +222,48 @@ grpc::Status Node::ReplicateToNode(const std::string& node, const std::string& k
 
 
 grpc::Status Node::Remove(grpc::ServerContext* context, const distributed_cache::RemoveRequest* request, distributed_cache::RemoveResponse* response) {
-    // if (!wal_->logRemove(address_, request->key())){
-    //     return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to log remove operation");
-    // }
-    write_queue_->logRemove(request->key());
- 
-    lru_cache_->remove(request->key());
-    response->set_success(true);
+    std::string key = request->key();
+    auto responsible_nodes = consistent_hash_.getNodes(key, 3);
+    bool is_responsible = std::find(responsible_nodes.begin(), responsible_nodes.end(), address_) != responsible_nodes.end();
+
+    if (!is_responsible) {
+        // Forward to responsible node
+        return ForwardRemoveRequest(responsible_nodes[0], request, response);
+    }
+
+    // Log the remove operation
+    write_queue_->logRemove(key);
+    
+    // Remove from local cache
+    lru_cache_->remove(key);
+
+    // Remove from replicas
+    std::vector<std::future<grpc::Status>> remove_futures;
+    for (const auto& peer : responsible_nodes) {
+        if (peer != address_) {
+            remove_futures.push_back(
+                std::async(std::launch::async,
+                    [this, &peer, request]() {
+                        distributed_cache::RemoveResponse peer_response;
+                        return this->ForwardRemoveRequest(peer, request, &peer_response);
+                    }
+                )
+            );
+        }
+    }
+
+    // Wait for all removals to complete
+    bool all_successful = true;
+    for (auto& future : remove_futures) {
+        grpc::Status status = future.get();
+        if (!status.ok()) {
+            all_successful = false;
+        }
+    }
+
+    response->set_success(all_successful);
     return grpc::Status::OK;
 }
-
 
 grpc::Status Node::ForwardPutRequest(const std::string& node,
                     const distributed_cache::PutRequest* request,

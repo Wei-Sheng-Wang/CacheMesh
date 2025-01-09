@@ -46,11 +46,10 @@ void WriteQueue::flushLoop() {
 
     while (running_) {
         std::unique_lock<std::mutex> lock(queue_mutex_);
-        std::size_t current_size = queue_.size();
 
 
         // since cv_ acquires the lock, it still holds the queue_mutex_ even after passing the cv_.wait call
-        cv_.wait_for(lock, flush_interval_, [this, current_size] {return !running_ || current_size >= batch_size_;});
+        cv_.wait_for(lock, flush_interval_, [this] {return !running_ ||  queue_.size() >= batch_size_;});
 
         if (!running_ && queue_.empty()) {
             break;
@@ -76,8 +75,8 @@ void WriteQueue::processBatch() {
 
         }
     }
-
-    wal_.writeBatch(node_id_, batch);
+    if(!batch.empty())
+        wal_.writeBatch(node_id_, batch);
 
 
 }   

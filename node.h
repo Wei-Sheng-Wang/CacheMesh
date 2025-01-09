@@ -67,7 +67,7 @@ public:
 
 
 private:
-        grpc::Status ReplicateToNode(const std::string& node, const std::string& key, const std::string& value, int64_t ttl);
+    grpc::Status ReplicateToNode(const std::string& node, const std::string& key, const std::string& value, int64_t ttl);
     grpc::Status ForwardPutRequest(const std::string& node,
                     const distributed_cache::PutRequest* request,
                     distributed_cache::PutResponse* response);
