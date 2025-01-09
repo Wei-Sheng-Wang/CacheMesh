@@ -2,6 +2,7 @@
 
 A high-performance, distributed in-memory cache system built with C++ and gRPC, featuring consistent hashing, write-ahead logging, and automatic recovery mechanisms.
 
+
 ## Features
 
 - **Distributed Architecture**: Supports multiple cache nodes with automatic data distribution
@@ -35,9 +36,18 @@ The system consists of several key components:
 - Protocol Buffers
 - Boost (for CRC32)
 
+### Installation Steps
+
+```bash
+# Install dependencies
+brew install cmake boost protobuf gRPC
+```
+
 ### Build Instructions
 
 ```bash
+git clone https://github.com/wei-sheng-wang/kvmesh.git
+cd kvmesh
 mkdir build
 cd build
 cmake ..
